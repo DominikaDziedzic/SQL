@@ -44,17 +44,17 @@ We only take into account repaid loans*/
 with cte as (
 select
     account_id,
-    count(amount) liczba,
-    sum(amount) suma,
-    avg(amount) średnia
+    count(amount) quantity,
+    sum(amount) sum,
+    avg(amount) avg
 from financial16_64.loan
 where status in ('A', 'C')
 group by account_id
 )
 select
     *,
-    row_number() over (order by suma desc) suma_malejąco,
-    row_number() over (order by liczba desc) liczba_malejąco
+    row_number() over (order by sum desc) sum_descending,
+    row_number() over (order by quantity desc) quantity_descending
 from cte
 #  4
 /*Check the balance of loans repaid by client gender.
@@ -81,12 +81,12 @@ What is the average age of the borrower depending on gender?
 Hints:
 Save the result of the previously written and then modified query, e.g. to a temporary table and conduct the analysis on it.
 You can calculate the age as the difference 2021 - the borrower's year of birth.*/
-drop table if exists wiek
-create temporary table wiek as
+drop table if exists t_age
+create temporary table t_age as
     (select
       c.gender,
       2024 - date_format(birth_date, '%Y') as age,
-      count(l.amount) as liczba_pozyczek
+      count(l.amount) as number_of_loans
     from financial16_64.loan l
     inner join financial16_64.account a on l.account_id = a.account_id
     inner join financial16_64.disp d on a.account_id = d.account_id
@@ -96,14 +96,14 @@ create temporary table wiek as
 -- number of loans by gender
 select
     gender,
-    sum(liczba_pozyczek) as liczba_pozyczek_w_podziale_na_wiek
-from wiek
+    sum(number_of_loans) as number_of_loans_by_age
+from t_age
 group by gender
 -- average age
 select
-    wiek.gender,
+    t_age.gender,
     avg(age)
-from wiek
+from t_age
 group by gender
 # 6
 /*Perform analyses that will answer the questions:
@@ -114,15 +114,15 @@ in which region were the most loans repaid in terms of amount.
 Select only account owners as customers.*/
 select
     A3,
-    count(distinct client_id) liczba_klientow
+    count(distinct client_id) number_of_customers
 from financial16_64.district
 inner join financial16_64.client c on district.district_id = c.district_id
 group by A3
-order by liczba_klientow desc
+order by number_of_customers desc
 -- region were the most loans repaid in terms of quantity
 select
     d2.A3,
-    count(l.amount) liczba_splaconych
+    count(l.amount) number_paid
 from financial16_64.loan l
 inner join financial16_64.account a on l.account_id = a.account_id
 inner join financial16_64.disp d on a.account_id = d.account_id
@@ -130,11 +130,11 @@ inner join financial16_64.client c on d.client_id = c.client_id
 inner join financial16_64.district d2 on a.district_id = d2.district_id
 where l.status in ('A', 'C') and d.type = 'OWNER'
 group by A3
-order by liczba_splaconych desc
+order by number_paid desc
 -- region were the largest loans repaid in terms of amount
 select
     d2.A3,
-    sum(l.amount) kwota_splaconych
+    sum(l.amount) amount_paid
 from financial16_64.loan l
 inner join financial16_64.account a on l.account_id = a.account_id
 inner join financial16_64.disp d on a.account_id = d.account_id
@@ -142,7 +142,7 @@ inner join financial16_64.client c on d.client_id = c.client_id
 inner join financial16_64.district d2 on a.district_id = d2.district_id
 where l.status in ('A', 'C') and d.type = 'OWNER'
 group by A3
-order by kwota_splaconych desc
+order by amount_paid desc
 
 # 7
 /*Using the query you obtained in the previous task, 
